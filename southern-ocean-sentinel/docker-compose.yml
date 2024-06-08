@@ -1,0 +1,47 @@
+version: "3"
+
+services:
+  # Serviço do banco de dados Oracle
+  db:
+    image: oracleinanutshell/oracle-xe-11g
+    restart: always
+    environment:
+      - ORACLE_ALLOW_REMOTE=true
+      - ORACLE_DISABLE_ASYNCH_IO=true
+      - ORACLE_PWD=rootpassword
+    ports:
+      - "1521:1521"  #Mapeamento da porta do host para a porta do contêiner do Oracle
+    volumes:
+      - db_data:/u01/app/oracle  # Volume para persistência dos dados do Oracle
+    networks:
+      - SOS_network  # Conexão à rede personalizada
+
+  # Serviço do back-end (Spring Boot)
+  backend:
+    build: ./SouthernOceanSentinel_API  # Build do Dockerfile no diretório backend
+    ports:
+      - "8080:8080"  # Mapeamento da porta do host para a porta do contêiner do Spring Boot
+    depends_on:
+      - db  # Dependência do serviço db
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:oracle:thin:@db:1521:xe  # URL do banco de dados Oracle
+      SPRING_DATASOURCE_USERNAME: system  # Usuário do banco de dados Oracle
+      SPRING_DATASOURCE_PASSWORD: rootpassword  # Senha do banco de dados Oracle
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update  # Configuração do Hibernate para atualizar o esquema
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.Oracle10gDialect  # Plataforma do banco de dados Oracle
+    networks:
+      - SOS_network  # Conexão à rede personalizada
+
+  # Serviço da API externa (Python)
+  external-api:
+    build: ./RoboflowModelAPI  # Build do Dockerfile no diretório external-api
+    ports:
+      - "8000:8000"  # Mapeamento da porta do host para a porta do contêiner da API externa
+    networks:
+      - SOS_network  # Conexão à rede personalizada
+
+networks:
+  SOS_network:  # Definição de uma rede personalizada para comunicação entre os serviços
+
+volumes:
+  db_data:  # Definição de um volume para persistência dos dados do Oracle
